@@ -1,0 +1,13 @@
+[package]
+name = "hina-sha256"
+version = "0.1.0"
+edition = "2024"
+
+[profile.dev]
+overflow-checks = false
+
+[lints.rust]
+dead_code = "allow"
+
+[dependencies]
+clap = { version = "4.6.6", features = ["derive"] }
