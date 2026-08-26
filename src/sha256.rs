@@ -1,6 +1,7 @@
 use std::{
     cmp,
     iter::once,
+    arch::x86_64 as asm,
 };
 
 const K_HELPER: [u32; 64] = [
@@ -180,6 +181,12 @@ impl Sha256Builder {
         ])
     }
 
+    // #[cfg(feature = "hw-accel")]
+    // fn chunk_round(&mut self, chunk: &[u32; 16]) {
+    //     
+    // }
+
+    // #[cfg(not(feature = "hw-accel"))]
     fn chunk_round(&mut self, chunk: &[u32; 16]) {
         let w = make_w(chunk);
 
@@ -221,6 +228,26 @@ impl Sha256Builder {
     }
 }
 
+#[cfg(feature = "hw-accel")]
+fn make_w(chunk: &[u32; 16]) -> [u32; 64] {
+    let mut out = [0; _];
+
+    out[0..16].copy_from_slice(chunk);
+
+    unsafe {
+        for idx in (16..64).step_by(4) {
+            let addr = out.as_ptr().add(idx * 4) as * const i32;
+            
+            let msg1 = asm::_mm_loadu_epi32(addr);
+            
+        }
+        
+    }
+    
+    out
+}
+
+#[cfg(not(feature = "hw-accel"))]
 fn make_w(chunk: &[u32; 16]) -> [u32; 64] {
     let mut out = [0; _];
 

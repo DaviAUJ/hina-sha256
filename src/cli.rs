@@ -33,7 +33,7 @@ pub struct HinaSha256 {
     /// k/K - Kibibytes 
     /// m/M - Mebibytes
     /// g/G - Gibibytes 
-    #[arg(short, long = "load", default_value = "1k", value_parser = parse_load_size, id = "BYTES", verbatim_doc_comment)]
+    #[arg(short, long = "load", default_value = "1m", value_parser = parse_load_size, id = "BYTES", verbatim_doc_comment)]
     load_size: usize,
 
     /// Compare the target's sum against another sum
@@ -64,6 +64,14 @@ impl HinaSha256 {
     pub fn is_compare_set(&self) -> Option<[u32; 8]> {
         self.compare
     }
+
+    pub fn load_size(&self) -> usize {
+        self.load_size
+    }
+
+    pub fn should_be_upper(&self) -> bool {
+        self.upper
+    }
 }
 
 fn parse_compare_sum(value: &str) -> io::Result<[u32; 8]> {
@@ -83,7 +91,42 @@ fn parse_compare_sum(value: &str) -> io::Result<[u32; 8]> {
 }
 
 fn parse_load_size(value: &str) -> io::Result<usize> {
-    todo!()
+    if !value.is_ascii() {
+        return Err(
+            io::Error::new(io::ErrorKind::InvalidInput, "Not valid ascii number string")
+        );
+    }
+
+    let first = value.bytes().nth(0).expect("Value here should always have at least one character");
+    
+    if !first.is_ascii_digit() {
+        return Err(
+            io::Error::new(io::ErrorKind::InvalidInput, "Invalid load size input")
+        )
+    }
+
+    let last = value.bytes().last().expect("Value here should always have at least one character");
+
+    let (number_part, mag) = if !last.is_ascii_digit() {
+        let mag = match last {
+            b'k' | b'K' => 1_000,
+            b'm' | b'M' => 1_000_000,
+            b'g' | b'G' => 1_000_000_000,
+            _ => return Err(
+                io::Error::new(io::ErrorKind::InvalidInput, format!("Invalid magnitude character \"{}\"", last as char))
+            ),
+        };
+        
+        (&value[..value.len()-1], mag)
+    }
+    else {
+        (value, 1)
+    };
+
+    let size = usize::from_str_radix(number_part, 10)
+        .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
+    
+    Ok(size * mag)
 }
 
 fn get_sum_from_file(value: &str) -> io::Result<[u32; 8]> {

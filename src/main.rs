@@ -13,28 +13,41 @@ use std::{
 
 fn main() {
     let args   = HinaSha256::parse();
-    let timer  = Instant::now();
 
-    let mut buf = args.target_buffer(123).unwrap();
-    let mut sha = Sha256Builder::new();
+    let mut buf = args.target_buffer(args.load_size())
+        .expect("Error encountered while creating BufReader");
     
-    while let Ok(pdata) = buf.fill_buf() {
-        let len = pdata.len();
-        sha = sha.add(pdata);
-        
-        if pdata.is_empty() {
-            let out = sha.sum();
+    let timer = Instant::now();
 
-            println!("Target: {}", args.file_name().to_string_lossy());
-            println!("Hash: {}", out.as_lower_hex());
+    let sha = {
+        let mut builder = Sha256Builder::new();
+        
+        while let Ok(pdata) = buf.fill_buf() {
+            let len = pdata.len();
+            builder = builder.add(pdata);
             
-            break;
+            if pdata.is_empty() {
+                break;
+            }
+    
+            buf.consume(len);
         }
 
-        buf.consume(len);
+        builder.sum()
+    };
+
+    let duration    = timer.elapsed();
+    let hash_string = if args.should_be_upper() {
+        sha.as_upper_hex()
     }
+    else {
+        sha.as_lower_hex()
+    };
+    
+    println!("Target:       {}", args.file_name().display());
+    println!("Hash:         {}", hash_string);
     
     if args.is_timer_set() {
-        println!("Time elapsed: {:?}", timer.elapsed());
+        println!("Time elapsed: {:?}", duration);
     }
 }
